@@ -15,6 +15,7 @@ import PostJob from "../pages/employer/PostJob";
 import ManageJobs from "../pages/employer/ManageJobs";
 import Candidates from "../pages/employer/Candidates";
 import ApplyJob from "../pages/jobs/ApplyJob";
+import AdminDashboard from "../pages/admin/AdminDashboard";
 
 const router = createBrowserRouter([
   {
@@ -78,6 +79,10 @@ const router = createBrowserRouter([
   path: "jobs/:id/apply",
   element: <ApplyJob />,
 },
+{
+  path: "admin",
+  element: <AdminDashboard />,
+}
     ],
   },
 ]);

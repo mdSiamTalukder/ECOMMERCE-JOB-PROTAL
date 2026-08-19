@@ -1,27 +1,14 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
-import {
-  FiBriefcase,
-  FiEye,
-  FiEyeOff,
-} from "react-icons/fi";
+import { FiBriefcase, FiEye, FiEyeOff } from "react-icons/fi";
+import { useDispatch } from "react-redux";
 
-import {
-  registerStart,
-  registerSuccess,
-  registerFailure,
-} from "../../features/auth/authSlice";
+import { loginSuccess } from "../../features/auth/authSlice";
 
 const Register = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-
-  const { loading, error } = useSelector(
-    (state) => state.auth
-  );
-
-  const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -30,10 +17,13 @@ const Register = () => {
     role: "jobseeker",
   });
 
-  const [agreed, setAgreed] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  const handleChange = (event) => {
+    const { name, value } = event.target;
 
     setFormData((prev) => ({
       ...prev,
@@ -41,62 +31,81 @@ const Register = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
-    if (!formData.name.trim()) {
-      dispatch(registerFailure("Please enter your full name."));
+    setError("");
+
+    const name = formData.name.trim();
+    const email = formData.email.trim().toLowerCase();
+    const password = formData.password;
+    const role = formData.role;
+
+    if (!name || !email || !password) {
+      setError("Please fill in all required fields.");
       return;
     }
 
-    if (!formData.email.trim()) {
-      dispatch(registerFailure("Please enter your email address."));
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
       return;
     }
 
-    if (formData.password.length < 6) {
-      dispatch(
-        registerFailure(
-          "Password must be at least 6 characters."
-        )
+    if (!agreeTerms) {
+      setError("Please agree to the Terms of Service and Privacy Policy.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await fetch(
+        "http://localhost:5000/api/auth/register",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name,
+            email,
+            password,
+            role,
+          }),
+        }
       );
-      return;
-    }
 
-    if (!agreed) {
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Registration failed. Please try again."
+        );
+      }
+
       dispatch(
-        registerFailure(
-          "Please agree to the Terms of Service and Privacy Policy."
-        )
+        loginSuccess({
+          user: data.user,
+          token: data.token,
+        })
       );
-      return;
-    }
 
-    dispatch(registerStart());
+      setFormData({
+        name: "",
+        email: "",
+        password: "",
+        role: "jobseeker",
+      });
 
-    // Demo registration
-    const user = {
-  id: Date.now(),
-  name: formData.name.trim(),
-  email: formData.email.trim(),
-  password: formData.password,
-  role: formData.role,
-};
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Registration error:", error);
 
-    const token = `demo-token-${Date.now()}`;
-
-    dispatch(
-      registerSuccess({
-        user,
-        token,
-      })
-    );
-
-    // Role অনুযায়ী redirect
-    if (formData.role === "employer") {
-      navigate("/employer/dashboard");
-    } else {
-      navigate("/jobs");
+      setError(
+        error.message || "Something went wrong. Please try again."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -116,7 +125,7 @@ const Register = () => {
                 <FiBriefcase className="text-xl" />
               </div>
 
-              <h2 className="text-2xl font-extrabold text-base-content">
+              <h2 className="text-2xl font-extrabold">
                 Job<span className="text-primary">Hub</span>
               </h2>
             </div>
@@ -124,7 +133,7 @@ const Register = () => {
             {/* Heading */}
 
             <div className="mt-8">
-              <h1 className="text-3xl font-extrabold text-base-content">
+              <h1 className="text-3xl font-extrabold">
                 Create an account
               </h1>
 
@@ -151,7 +160,7 @@ const Register = () => {
               {/* Name */}
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-base-content">
+                <label className="mb-2 block text-sm font-semibold">
                   Full Name
                 </label>
 
@@ -162,13 +171,15 @@ const Register = () => {
                   onChange={handleChange}
                   placeholder="Your full name"
                   className="input input-bordered w-full"
+                  disabled={loading}
+                  required
                 />
               </div>
 
               {/* Email */}
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-base-content">
+                <label className="mb-2 block text-sm font-semibold">
                   Email Address
                 </label>
 
@@ -179,18 +190,19 @@ const Register = () => {
                   onChange={handleChange}
                   placeholder="you@example.com"
                   className="input input-bordered w-full"
+                  disabled={loading}
+                  required
                 />
               </div>
 
               {/* Password */}
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-base-content">
+                <label className="mb-2 block text-sm font-semibold">
                   Password
                 </label>
 
                 <div className="relative">
-
                   <input
                     type={showPassword ? "text" : "password"}
                     name="password"
@@ -198,6 +210,8 @@ const Register = () => {
                     onChange={handleChange}
                     placeholder="Create a password"
                     className="input input-bordered w-full pr-12"
+                    disabled={loading}
+                    required
                   />
 
                   <button
@@ -206,21 +220,17 @@ const Register = () => {
                       setShowPassword((prev) => !prev)
                     }
                     className="btn btn-ghost btn-sm btn-circle absolute right-2 top-1/2 -translate-y-1/2"
+                    disabled={loading}
                   >
-                    {showPassword ? (
-                      <FiEyeOff />
-                    ) : (
-                      <FiEye />
-                    )}
+                    {showPassword ? <FiEyeOff /> : <FiEye />}
                   </button>
-
                 </div>
               </div>
 
               {/* Role */}
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-base-content">
+                <label className="mb-2 block text-sm font-semibold">
                   Account Type
                 </label>
 
@@ -229,6 +239,7 @@ const Register = () => {
                   value={formData.role}
                   onChange={handleChange}
                   className="select select-bordered w-full"
+                  disabled={loading}
                 >
                   <option value="jobseeker">
                     Job Seeker
@@ -243,20 +254,19 @@ const Register = () => {
               {/* Terms */}
 
               <label className="flex cursor-pointer items-start gap-3 text-sm">
-
                 <input
                   type="checkbox"
-                  checked={agreed}
-                  onChange={(e) =>
-                    setAgreed(e.target.checked)
+                  checked={agreeTerms}
+                  onChange={(event) =>
+                    setAgreeTerms(event.target.checked)
                   }
                   className="checkbox checkbox-primary checkbox-sm mt-0.5"
+                  disabled={loading}
                 />
 
                 <span className="text-base-content/60">
                   I agree to the Terms of Service and Privacy Policy.
                 </span>
-
               </label>
 
               {/* Submit */}
@@ -275,7 +285,6 @@ const Register = () => {
                   "Create Account"
                 )}
               </button>
-
             </form>
 
             {/* Login */}
@@ -337,10 +346,10 @@ const Register = () => {
           </div>
 
         </div>
-
       </div>
     </main>
   );
 };
 
 export default Register;
+
